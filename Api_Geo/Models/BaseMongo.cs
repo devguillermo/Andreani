@@ -13,7 +13,7 @@ namespace Api_Geo.Models
     public interface IServiceMongo
     {
         public bool addDocumentRequest(RequestGeo documento);
-        public bool UpdateDocumentRequest(ResponseOps documento,  string id);
+        public bool UpdateDocumentRequest(RequestGeo documento,  string id);
 
         public RequestGeo SelectDocument(string id);
     }
@@ -54,7 +54,7 @@ namespace Api_Geo.Models
             return true;
         }
 
-        public bool UpdateDocumentRequest(ResponseOps documento, string id)
+        public bool UpdateDocumentRequest(RequestGeo documento, string id)
 
         {
            
@@ -62,7 +62,8 @@ namespace Api_Geo.Models
             //MongoDB.Bson.ObjectId.Parse(id)
             var filter = Builders<RequestGeo>.Filter.Eq("_id", MongoDB.Bson.ObjectId.Parse(id));
 
-            var update = Builders<RequestGeo>.Update.Set("ResponseOps", documento);
+            //var update = Builders<RequestGeo>.Update.Combine(documento);
+            var update = Builders<RequestGeo>.Update.Set("ResponseOps", documento.ResponseOps).Set("GeoLocState", true);
 
             dbCollection.UpdateOne(filter, update);
 

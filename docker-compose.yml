@@ -1,0 +1,65 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+
+  mongo:
+    image: mongo
+    container_name: db_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    networks:
+      - frontend
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+    networks:
+      - frontend
+      
+  RabbitMq:
+    image: rabbitmq:3-management
+    container_name: rabbit
+    restart: always
+    
+    ports:
+      - 5672:5672
+      - 15672:15672
+    
+    environment:
+      RABBITMQ_DEFAULT_USER: andres
+      RABBITMQ_DEFAULT_PASS: Amarela0304
+      
+    networks:
+      - frontend
+      
+  apigeo:
+    image: norteitdev/apigeo:v03
+    container_name: apigeo
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - frontend
+  
+  geocodificador:
+    image: norteitdev/geocodificador:v03
+    container_name: geocodificador
+    restart: always
+    
+    networks:
+      - frontend
+      
+networks:
+  frontend:
+    name: andreani
+    driver: bridge

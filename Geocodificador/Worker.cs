@@ -11,7 +11,8 @@ using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using LibraryCommond;
+
+using Microsoft.Extensions.Configuration;
 
 namespace Geocodificador
 {
@@ -19,11 +20,24 @@ namespace Geocodificador
     {
         private readonly ILogger<Worker> _logger;
         private ServiceRabbitMq serviceRabbitMq;
-        public Worker(ILogger<Worker> logger)
+        private IConfiguration configuration;
+
+        private string request;
+        private string response;
+        public Worker(ILogger<Worker> logger, IConfiguration configuration)
         {
-            _logger = logger;//172.17.0.3
-            serviceRabbitMq = new ServiceRabbitMq("andres", "Amarela0304", "/", "RabbitGuille", "ResponseGeolocalizar", "geolocalizar");
-            //serviceRabbitMq = new ServiceRabbitMq("andres", "Amarela0304", "/", "172.17.0.3", "ResponseGeolocalizar", "geolocalizar");
+            this.configuration = configuration;
+
+            var user = configuration["AppSettings:UserNameRabbit"];
+            var passwoed = configuration["AppSettings:PasswordRabbit"];
+            var host = configuration["AppSettings:HostNameRabbit"];
+            var vhost = configuration["AppSettings:VirtualHost"];
+            request = configuration["AppSettings:Queuelistener"];
+            response = configuration["AppSettings:QueueSend"];
+
+            _logger = logger;
+            serviceRabbitMq = new ServiceRabbitMq(user, passwoed, vhost, host, response, request);
+            
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,37 +49,45 @@ namespace Geocodificador
             {
                 //_logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
 
-
-
-                using (var connection = serviceRabbitMq.Factory.CreateConnection())
-                using (var channel = connection.CreateModel())
+                try
                 {
-                    channel.QueueDeclare(queue: "geolocalizar",
-                                         durable: false,
-                                         exclusive: false,
-                                         autoDelete: false,
-                                         arguments: null);
-
-                    var consumer = new EventingBasicConsumer(channel);
-                    consumer.Received += (model, ea) =>
+                    using (var connection = serviceRabbitMq.Factory.CreateConnection())
+                    using (var channel = connection.CreateModel())
                     {
-                        var body = ea.Body.ToArray();
-                        var message = Encoding.UTF8.GetString(body);
+                        channel.QueueDeclare(queue: request,
+                                             durable: false,
+                                             exclusive: false,
+                                             autoDelete: false,
+                                             arguments: null);
 
-                        _logger.LogInformation("Mensaje Recivido: {message}", message);
+                        var consumer = new EventingBasicConsumer(channel);
+                        consumer.Received += (model, ea) =>
+                        {
+                            var body = ea.Body.ToArray();
+                            var message = Encoding.UTF8.GetString(body);
 
-                        GetGeocodificadorAsync(message);
+                            _logger.LogInformation("Mensaje Recivido: {message}", message);
+
+                            GetGeocodificadorAsync(message);
 
 
-                    };
-                    channel.BasicConsume(queue: "geolocalizar",
-                                         autoAck: true,
-                                         consumer: consumer);
+                        };
+                        channel.BasicConsume(queue: request,
+                                             autoAck: true,
+                                             consumer: consumer);
 
-                    await Task.Delay(1000, stoppingToken);
+                        await Task.Delay(1000, stoppingToken);
 
+
+                    }
 
                 }
+                catch (RabbitMQ.Client.Exceptions.BrokerUnreachableException ex)
+                {
+                    _logger.LogInformation("Error de Coneccion {time}, Mensaje: {message},  {num}", DateTimeOffset.Now, ex.Message, ex.InnerException.Source);
+                 
+                }
+                
 
                 
 
@@ -86,12 +108,9 @@ namespace Geocodificador
 
             string param = geolocalizar.parametro();
 
-            //Task<string> task = await servicio.GetAsync(param);
             _logger.LogInformation("Esperando respuesta OMS ");
             string responseOMS = await servicio.GetAsync(param);
             _logger.LogInformation("Respuesta OMS : " + geolocalizar.id.ToString());
-
-           // responseOMS = responseOMS.Replace("[", "").Replace("]", "");
 
             char[] MyChar = { ']'};
             char[] MyChar2 = { '[' };
@@ -104,7 +123,7 @@ namespace Geocodificador
             try
             {
                 ResponseOps res = JsonSerializer.Deserialize<ResponseOps>(responseOMS);
-                _logger.LogInformation("RESPONDIENDO, RESPONDIENDO, RESPONDIENDO, RESPONDIENDO, RESPONDIENDO,");
+                _logger.LogInformation("RESPONDIENDO");
                 geolocalizar.ResponseOps = res;
 
                 string jsonGeo = JsonSerializer.Serialize(geolocalizar);

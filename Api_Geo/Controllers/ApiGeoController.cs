@@ -29,7 +29,7 @@ namespace Api_Geo.Controllers
 
         [HttpGet]
         [Route("/geolocalizar/{calle}/{numero}/{ciudad}/{cp}/{provincia}/{pais}")]
-        public ActionResult Get(string calle, string numero, string ciudad, string cp,
+        public  ActionResult Get(string calle, string numero, string ciudad, string cp,
             string provincia, string pais)
         {
             string mesaje = $@"Mensaje {calle}, {numero}, {ciudad}, {pais}";
@@ -50,6 +50,7 @@ namespace Api_Geo.Controllers
                 GeoLocState = false
             };
 
+
             _serviceMongo.addDocumentRequest(geo);
 
 
@@ -67,26 +68,43 @@ namespace Api_Geo.Controllers
         public ActionResult Get(string Id)
         {
 
-
-
-
             RequestGeo geo = _serviceMongo.SelectDocument(Id);
-
-
-            ProcessStatus processStatus = new ProcessStatus
+            ProcessStatus processStatus;
+            if (geo == null)
             {
-                id = geo.id.ToString(),
-                latitud = geo.ResponseOps.lat,
-                longitud = geo.ResponseOps.lon,
-                estado = geo.GeoLocState.ToString()
-            };
+                processStatus = new ProcessStatus { id = "0" };
+            }
+            else
+            {
+                /*
+                processStatus = new ProcessStatus
+                {
+                    id = geo.idStr,
+                    latitud = geo.ResponseOps.lat == null ? 0.ToString(): geo.ResponseOps.lat,
+                    longitud = geo.ResponseOps.lon == null ?0.ToString(): geo.ResponseOps.lon,
+                    estado = geo.GeoLocState.ToString()
+                };
+                */
+
+                processStatus = new ProcessStatus
+                {
+                    id = geo.idStr,
+                    latitud =geo.ResponseOps is null ? "0" : geo.ResponseOps.lat,
+                    longitud = geo.ResponseOps is null ? "0" : geo.ResponseOps.lon,
+                    estado = geo.GeoLocState.ToString()
+                };
+
+            }
 
 
-            
+
+
 
 
             return Ok(processStatus);
 
         }
+
+        
     }
 }

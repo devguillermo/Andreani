@@ -29,7 +29,7 @@ namespace LibraryCommond
              };
 
             this.QueueSend = _settings.Value.QueueSend;
-            this.QueueResponse = _settings.Value.QueueResponse;
+            this.QueueResponse = _settings.Value.Queuelistener;
 
 
         }

@@ -29,7 +29,7 @@ namespace Api_Geo
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
-            string queue = _settings.Value.QueueResponse;
+            string queue = _settings.Value.Queuelistener;
             string VirtualHost = _settings.Value.VirtualHost;
 
             ConnectionFactory factory = new ConnectionFactory();
@@ -47,35 +47,44 @@ namespace Api_Geo
                 //_logger.LogInformation("Escuchando mensajes en Virtual Host {virtual}, Queue: {queue}: {time}", VirtualHost, queue, DateTimeOffset.Now);
 
 
-
-                using (var connection = factory.CreateConnection())
-                using (var channel = connection.CreateModel())
+                try
                 {
-                    channel.QueueDeclare(queue: queue,
-                                         durable: false,
-                                         exclusive: false,
-                                         autoDelete: false,
-                                         arguments: null);
-
-                    var consumer = new EventingBasicConsumer(channel);
-                    consumer.Received += (model, ea) =>
+                    using (var connection = factory.CreateConnection())
+                    using (var channel = connection.CreateModel())
                     {
-                        var body = ea.Body.ToArray();
-                        var message = Encoding.UTF8.GetString(body);
-                        _logger.LogInformation("Mensaje Recivido desde Geocodificador: {message}", message);
-                        SaveGeocodificacion(message);
+                        channel.QueueDeclare(queue: queue,
+                                             durable: false,
+                                             exclusive: false,
+                                             autoDelete: false,
+                                             arguments: null);
+
+                        var consumer = new EventingBasicConsumer(channel);
+                        consumer.Received += (model, ea) =>
+                        {
+                            var body = ea.Body.ToArray();
+                            var message = Encoding.UTF8.GetString(body);
+                            _logger.LogInformation("Mensaje Recivido desde Geocodificador: {message}", message);
+                            SaveGeocodificacion(message);
 
 
 
-                    };
-                    channel.BasicConsume(queue: queue,
-                                         autoAck: true,
-                                         consumer: consumer);
+                        };
+                        channel.BasicConsume(queue: queue,
+                                             autoAck: true,
+                                             consumer: consumer);
 
-                    await Task.Delay(1000, stoppingToken);
+                        await Task.Delay(1000, stoppingToken);
 
 
+                    }
+                
+                } catch (RabbitMQ.Client.Exceptions.BrokerUnreachableException ex)
+                {
+                    _logger.LogInformation("Error de Coneccion {time}, Mensaje: {message},  {num}", DateTimeOffset.Now, ex.Message, ex.InnerException.Source);
+                    //Thread.Sleep(5000);
+                    // apply retry logic
                 }
+                
             }
         }
 
@@ -91,7 +100,9 @@ namespace Api_Geo
 
             RequestGeo geolocalizar = JsonSerializer.Deserialize<RequestGeo>(message);
 
-            _serviceMongo.UpdateDocumentRequest(geolocalizar.ResponseOps, geolocalizar.idStr);
+            
+
+            _serviceMongo.UpdateDocumentRequest(geolocalizar, geolocalizar.idStr);
         }
 
     }

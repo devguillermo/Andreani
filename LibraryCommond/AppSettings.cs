@@ -16,9 +16,9 @@ namespace LibraryCommond
 
         public string HostNameRabbit { get; set; }
 
-        public string QueueSend { get; set; }
+        public string Queuelistener { get; set; }
 
-        public string QueueResponse { get; set; }
+        public string QueueSend { get; set; }
 
         public string HostDb { get; set; }
 
